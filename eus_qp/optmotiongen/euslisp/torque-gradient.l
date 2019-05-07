@@ -39,14 +39,13 @@ return $\bm{J}_m \in \mathbb{R}^{6 \times N_{\mathit{drive\mathchar`-joint}}}$
           (make-matrix 6 (length drive-joint-list)))
          (current-link contact-parent-link)
          (drive-jnt)
+         (drive-jnt-idx)
          )
     ;; contact-parent-linkからルートリンクまで親リンクをたどっていく
     (while (send current-link :parent-link)
       (setq drive-jnt (send current-link :joint))
-      (when (member drive-jnt drive-joint-list)
-        (let* ((drive-jnt-idx
-                (position drive-jnt drive-joint-list))
-               (end-pos ;; [m]
+      (when (setq drive-jnt-idx (position drive-jnt drive-joint-list))
+        (let* ((end-pos ;; [m]
                 (scale 1e-3 (send contact-coords :worldpos)))
                (jnt-axis
                 (send drive-jnt :axis-vector))
@@ -336,11 +335,13 @@ return $\bm{J}_{\mathit{cog,k}} \in \mathbb{R}^{3 \times N_{\mathit{drive\mathch
           (make-matrix 3 (length drive-joint-list)))
          (gravity-link-cog-world ;; [m]
           (scale 1e-3 (send gravity-link :centroid-with-fixed-child-links)))
+         (current-link gravity-link)
          (drive-jnt)
+         (drive-jnt-idx)
          )
-    (dotimes (i (length drive-joint-list))
-      (setq drive-jnt (elt drive-joint-list i))
-      (when (member (send drive-jnt :child-link) (send robot :link-list gravity-link))
+    (while (send current-link :parent-link)
+      (setq drive-jnt (send current-link :joint))
+      (when (setq drive-jnt-idx (position drive-jnt drive-joint-list))
         (let* ((jnt-axis
                 (send drive-jnt :axis-vector))
                (jnt-pos ;; [m]
@@ -356,8 +357,10 @@ return $\bm{J}_{\mathit{cog,k}} \in \mathbb{R}^{3 \times N_{\mathit{drive\mathch
                        ))
                 )
                )
-          (setf (matrix-column jacobi i) jacobi-vec)
-          )))
+          (setf (matrix-column jacobi drive-jnt-idx) jacobi-vec)
+          ))
+      (setq current-link (send current-link :parent-link))
+      )
     jacobi
     ))
 
@@ -493,6 +496,8 @@ return $\frac{\partial \bm{\tau}^{\mathit{grav}}}{\partial \bm{\theta}} \in \mat
          (centroid-derivative)
          (jacobi-element)
          )
+
+
     (dotimes (i (length drive-joint-list))
       (setq drive-jnt (elt drive-joint-list i))
       (dotimes (j (length joint-list))
